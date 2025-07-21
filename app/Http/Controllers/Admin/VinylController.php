@@ -118,6 +118,7 @@ class VinylController extends Controller
             'tracks.*.name' => 'required|string|max:255',
             'tracks.*.position' => 'required|string', // Position can be 'A1', 'B2', etc.
             'tracks.*.duration' => 'nullable|string|max:20',
+            'tracks.*.youtube_url' => 'nullable|string|url',
         ]);
 
         try {
@@ -216,17 +217,14 @@ class VinylController extends Controller
 
             // 6. Create tracks
             if (!empty($validatedData['tracks'])) {
-                $tracks = collect($validatedData['tracks'])->map(function ($trackData) use ($vinylMaster) {
-                    return [
-                        'vinyl_master_id' => $vinylMaster->id,
+                foreach ($validatedData['tracks'] as $trackData) {
+                    $vinylMaster->tracks()->create([
                         'name' => $trackData['name'],
                         'position' => $trackData['position'],
                         'duration' => $trackData['duration'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                })->all();
-                Track::insert($tracks);
+                        'youtube_url' => $trackData['youtube_url'] ?? null,
+                    ]);
+                }
             }
 
             // 7. Create product automatically

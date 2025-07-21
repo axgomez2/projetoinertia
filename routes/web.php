@@ -3,6 +3,7 @@
 use App\Http\Controllers\Site\HomeController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\VinylController;
+use App\Http\Controllers\Admin\YouTubeController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -16,6 +17,7 @@ Route::middleware(['auth', 'verified', 'role:66'])->prefix('admin')->name('admin
     Route::get('vinyls/search-discogs', [VinylController::class, 'searchDiscogs'])->name('vinyls.searchDiscogs');
     Route::get('vinyls/discogs-details/{discogs_id}', [VinylController::class, 'getDiscogsDetails'])->name('vinyls.getDiscogsDetails');
     Route::resource('vinyls', VinylController::class);
+    Route::get('/youtube/search', [YouTubeController::class, 'search'])->name('youtube.search');
 });
 
 Route::get('dashboard', function () {

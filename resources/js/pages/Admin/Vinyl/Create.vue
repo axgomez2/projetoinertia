@@ -18,11 +18,21 @@
       <div v-if="searchResults.length > 0" class="mt-6">
         <h3 class="font-bold text-gray-800">Resultados da Busca:</h3>
         <ul class="mt-4 border rounded-md divide-y">
-          <li v-for="result in searchResults" :key="result.id" @click="() => selectResult(result.id)" class="p-4 flex items-center hover:bg-gray-100 cursor-pointer">
+          <li v-for="result in searchResults" :key="result.id" @click="() => selectResult(result.id)" 
+            class="p-4 flex items-center justify-between hover:bg-gray-100 cursor-pointer transition-opacity"
+            :class="{ 'opacity-50 pointer-events-none': loadingDetailsId === result.id }">
+            <div class="flex items-center">
             <img :src="result.thumb || '/images/placeholder.png'" alt="Capa" class="w-12 h-12 object-cover rounded mr-4">
             <div>
               <p class="font-semibold text-gray-800">{{ result.title }}</p>
               <p class="text-sm text-gray-600">{{ result.year }} - {{ result.country }}</p>
+            </div>
+            </div>
+            <div v-if="loadingDetailsId === result.id">
+                <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
             </div>
           </li>
         </ul>
@@ -100,26 +110,66 @@
         <!-- Faixas -->
         <div class="mt-8">
             <h3 class="font-bold mb-4 text-gray-800">Faixas</h3>
-            <div class="space-y-2">
-                <div v-for="(track, index) in vinylDetails.tracks" :key="index" class="grid grid-cols-12 gap-2 items-center">
-                    <span class="col-span-1 text-right text-gray-500 font-mono">{{ track.position }}</span>
-                    <div class="col-span-8">
-                        <input v-model="track.name" type="text" class="form-input w-full text-sm text-gray-700" />
+            <div class="space-y-3">
+                <div v-for="(track, index) in vinylDetails.tracks" :key="index" class="p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <div class="grid grid-cols-12 gap-x-3 items-center">
+                        <span class="col-span-1 text-right text-gray-600 font-mono font-semibold">{{ track.position }}</span>
+                        <div class="col-span-6">
+                            <label class="text-xs text-gray-500">Título</label>
+                            <input v-model="track.name" type="text" class="form-input w-full text-sm text-gray-800" />
+                        </div>
+                        <div class="col-span-2">
+                            <label class="text-xs text-gray-500">Duração</label>
+                            <input v-model="track.duration" type="text" class="form-input w-full text-sm text-gray-800" />
+                        </div>
+                        <div class="col-span-3 flex items-end gap-2">
+                            <button type="button" @click="openYouTubeSearch(index)" class="text-xs py-2 px-3 bg-red-600 text-white rounded-md hover:bg-red-700 w-full">YouTube</button>
+                            <button type="button" @click="deleteTrack(index)" class="text-xs py-2 px-3 bg-gray-700 text-white rounded-md hover:bg-gray-800 w-full">Excluir</button>
+                        </div>
                     </div>
-                    <div class="col-span-3">
-                        <input v-model="track.duration" type="text" class="form-input w-full text-sm text-gray-700" />
+                    <div class="mt-2 col-span-12">
+                         <label class="text-xs text-gray-500">URL YouTube</label>
+                        <input v-model="track.youtube_url" type="text" placeholder="https://youtube.com/watch?v=..." class="form-input w-full text-sm text-gray-800 bg-gray-100" readonly />
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="mt-8 flex justify-end">
-          <button type="submit" :disabled="isLoading" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-md hover:bg-indigo-500 disabled:opacity-50">
+        <div class="mt-8 flex justify-end items-center gap-4">
+          <a v-if="vinylDetails.discogs_url" :href="vinylDetails.discogs_url" target="_blank" rel="noopener noreferrer" class="px-6 py-3 bg-gray-700 text-white font-bold rounded-md hover:bg-gray-600">
+            Ver no Discogs
+          </a>
+          <button type="submit" :disabled="form.processing" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-md hover:bg-indigo-500 disabled:opacity-50">
             <span v-if="isLoading">Salvando...</span>
             <span v-else>Salvar Disco</span>
           </button>
         </div>
       </form>
+    </div>
+
+    <!-- YouTube Search Modal -->
+    <div v-if="isYouTubeModalVisible" class="fixed inset-0 bg-black bg-opacity-60 z-40 flex justify-center items-center" @click.self="closeYouTubeModal">
+      <div class="bg-white rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+        <h3 class="text-xl font-bold mb-4 text-gray-800">Resultados da Busca no YouTube</h3>
+        <div v-if="isLoadingYouTube" class="text-center py-8">
+          <p class="text-gray-600">Buscando vídeos...</p>
+        </div>
+        <div v-else-if="youtubeSearchResults.length > 0" class="space-y-3">
+          <div v-for="video in youtubeSearchResults" :key="video.videoId" class="flex items-center gap-4 p-2 rounded-md hover:bg-gray-100 cursor-pointer" @click="selectYouTubeVideo(video)">
+            <img :src="video.thumbnail" class="w-24 h-18 object-cover rounded-md">
+            <div class="flex-grow">
+              <p class="font-semibold text-sm text-gray-900">{{ video.title }}</p>
+              <p class="text-xs text-gray-600">{{ video.description.substring(0, 100) }}...</p>
+            </div>
+          </div>
+        </div>
+        <div v-else class="text-center py-8">
+          <p class="text-gray-600">Nenhum resultado encontrado.</p>
+        </div>
+        <div class="mt-6 text-right">
+          <button @click="closeYouTubeModal" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">Fechar</button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal de Seleção de Imagem -->
@@ -155,6 +205,7 @@ const currentStep = ref(1);
 const searchQuery = ref('');
 const searchResults = ref([]);
 const isLoading = ref(false);
+const loadingDetailsId = ref(null); // ID do resultado sendo carregado
 const vinylDetails = ref(null);
 
 // Modal state
@@ -162,6 +213,12 @@ const showImageModal = ref(false);
 const modalImages = ref([]);
 const currentItem = ref(null); // Guarda o objeto (vinyl, artist, ou label) sendo editado
 const currentItemType = ref(''); // 'vinyl', 'artist', ou 'label'
+
+// YouTube Modal State
+const isYouTubeModalVisible = ref(false);
+const youtubeSearchResults = ref([]);
+const isLoadingYouTube = ref(false);
+const currentTrackIndex = ref(null);
 
 const searchDiscogs = async () => {
   if (!searchQuery.value) return;
@@ -178,12 +235,13 @@ const searchDiscogs = async () => {
 };
 
 const selectResult = async (discogsId) => {
-  isLoading.value = true;
+  loadingDetailsId.value = discogsId;
   try {
     const response = await axios.get(route('admin.vinyls.getDiscogsDetails', { discogs_id: discogsId }));
+
     const details = response.data;
 
-    // Prepara os dados para o formulário, definindo a imagem/logo padrão
+    // Garante que a primeira imagem da lista seja usada
     details.artists = details.artists.map(artist => ({
       ...artist,
       image: artist.images && artist.images.length > 0 ? artist.images[0].uri : null
@@ -195,13 +253,24 @@ const selectResult = async (discogsId) => {
     }));
 
     vinylDetails.value = details;
-    currentStep.value = 2;
 
+    form.discogs_id = response.data.discogs_id.toString();
+    form.title = response.data.title;
+    form.year = response.data.year;
+    form.country = response.data.country;
+    form.description = response.data.description;
+    form.discogs_url = response.data.discogs_url;
+    form.cover_image = response.data.cover_image;
+    form.artists = vinylDetails.value.artists;
+    form.record_labels = vinylDetails.value.record_labels;
+    form.tracks = response.data.tracks.map(track => ({ ...track, youtube_url: '' }));
+
+    currentStep.value = 2;
   } catch (error) {
-    console.error('Erro ao obter detalhes do disco:', error);
-    alert('Não foi possível carregar os detalhes do disco. Tente novamente.');
+    console.error('Erro ao buscar detalhes do disco:', error);
+    // Adicionar notificação de erro para o usuário aqui
   } finally {
-    isLoading.value = false;
+    loadingDetailsId.value = null; // Garante que o loading sempre pare
   }
 };
 
@@ -282,6 +351,46 @@ const selectImage = (image) => {
   showImageModal.value = false;
 };
 
+// --- YouTube Search Functions ---
+async function openYouTubeSearch(index) {
+  currentTrackIndex.value = index;
+  const track = vinylDetails.value.tracks[index];
+  const artistName = vinylDetails.value.artists[0]?.name || ''; // Pega o primeiro artista como referência
+  const query = `${track.name} ${artistName}`.trim();
+
+  if (!query) return;
+
+  isYouTubeModalVisible.value = true;
+  isLoadingYouTube.value = true;
+  youtubeSearchResults.value = [];
+
+  try {
+    const response = await axios.get(route('admin.youtube.search', { query }));
+    youtubeSearchResults.value = response.data;
+  } catch (error) {
+    console.error('Erro ao buscar no YouTube:', error);
+    // Adicionar notificação de erro para o usuário aqui
+  } finally {
+    isLoadingYouTube.value = false;
+  }
+}
+
+function selectYouTubeVideo(video) {
+  if (currentTrackIndex.value !== null) {
+    vinylDetails.value.tracks[currentTrackIndex.value].youtube_url = video.url;
+  }
+  closeYouTubeModal();
+}
+
+function closeYouTubeModal() {
+  isYouTubeModalVisible.value = false;
+  youtubeSearchResults.value = [];
+  currentTrackIndex.value = null;
+}
+
+function deleteTrack(index) {
+  vinylDetails.value.tracks.splice(index, 1);
+}
 
 defineOptions({
   layout: AdminLayout,

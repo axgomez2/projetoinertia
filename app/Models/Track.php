@@ -14,6 +14,7 @@ class Track extends Model
         'name',
         'position',
         'duration',
+        'youtube_url',
     ];
 
     /**
