@@ -36,3 +36,15 @@ export interface User {
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;
+
+export interface Vinyl {
+    id: number;
+    title: string;
+    slug?: string;
+    cover_image?: string;
+    release_year?: number;
+    artists?: string;
+    current_price?: number;
+    status_text?: string;
+    is_complete?: boolean;
+}

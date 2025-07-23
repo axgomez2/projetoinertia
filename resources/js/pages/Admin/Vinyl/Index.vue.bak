@@ -1,0 +1,179 @@
+<script setup>
+import { ref, watch } from 'vue';
+import { router, Link } from '@inertiajs/vue3';
+import AdminLayout from '@/layouts/admin/AdminLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
+import debounce from 'lodash/debounce';
+
+defineOptions({
+  layout: AdminLayout,
+});
+
+const props = defineProps({
+  vinyls: Object,
+  filters: Object,
+  categories: Array,
+});
+
+// Estados para filtros
+const search = ref(props.filters?.search || '');
+const category = ref(props.filters?.category || '');
+const status = ref(props.filters?.status || '');
+
+// Observar mudanças nos filtros e atualizar a página
+watch([search, category, status], debounce(function () {
+  router.get(route('admin.vinyls.index'), {
+    search: search.value,
+    category: category.value,
+    status: status.value,
+  }, {
+    preserveState: true,
+    replace: true,
+  });
+}, 300));
+
+// Função para excluir um disco
+const deleteVinyl = (id) => {
+  if (confirm('Tem certeza que deseja excluir este disco? Esta ação não pode ser desfeita.')) {
+    router.delete(route('admin.vinyls.destroy', id));
+  }
+};
+
+// Função para determinar a classe CSS do status
+const getStatusClass = (vinyl) => {
+  if (!vinyl.vinyl_sec) {
+    return 'bg-yellow-100 text-yellow-800'; // Incompleto
+  }
+  if (vinyl.in_stock) {
+    return 'bg-green-100 text-green-800'; // Em estoque
+  }
+  return 'bg-red-100 text-red-800'; // Fora de estoque
+};
+
+// Função para obter o texto do status
+const getStatusText = (vinyl) => {
+  if (!vinyl.vinyl_sec) {
+    return 'Incompleto';
+  }
+  if (vinyl.in_stock) {
+    return 'Em Estoque';
+  }
+  return 'Fora de Estoque';
+};
+</script>
+
+<template>
+  <div>
+    <div class="flex justify-between items-center mb-6">
+      <h1 class="text-2xl text-gray-700 font-bold">Discos de Vinil</h1>
+      <Link 
+        :href="route('admin.vinyls.create')"
+        class="inline-flex items-center px-4 py-2 bg-gray-800 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 active:bg-gray-900 focus:outline-none focus:border-gray-900 focus:ring focus:ring-gray-300 disabled:opacity-25 transition"
+      >
+        Adicionar Novo Disco
+      </Link>
+    </div>
+
+    <!-- Filtros -->
+    <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input 
+          v-model="search" 
+          type="text" 
+          placeholder="Buscar por título ou artista..." 
+          class="sm:text-sm rounded-md text-gray-700 border-gray-300"
+        >
+        <select 
+          v-model="category"
+          class="sm:text-sm rounded-md text-gray-700 border-gray-300"
+        >
+          <option :value="null">Todas as Categorias</option>
+          <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+            {{ cat.name }}
+          </option>
+        </select>
+        <select 
+          v-model="status"
+          class="sm:text-sm rounded-md text-gray-700 border-gray-300"
+        >
+          <option :value="null">Toda a Disponibilidade</option>
+          <option value="available">Disponível</option>
+          <option value="unavailable">Indisponível</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Tabela de Discos -->
+    <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Capa</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Artistas</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ano</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Preço</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+            <th scope="col" class="relative px-6 py-3">
+              <span class="sr-only">Ações</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <tr v-for="vinyl in vinyls.data" :key="vinyl.id">
+            <td class="px-6 py-4 whitespace-nowrap">
+              <img :src="vinyl.cover_image || '/images/placeholder.png'" alt="Capa" class="w-12 h-12 object-cover rounded">
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700">{{ vinyl.title }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+              <span v-if="vinyl.artists && vinyl.artists.length > 0">
+                {{ vinyl.artists.map(artist => artist.name).join(', ') }}
+              </span>
+              <span v-else class="text-gray-400">Sem artista</span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ vinyl.release_year }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+              {{ vinyl.price ? `R$ ${vinyl.price}` : '-' }}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm">
+              <span class="px-2 py-1 text-xs font-semibold rounded-full" :class="getStatusClass(vinyl)">
+                {{ getStatusText(vinyl) }}
+              </span>
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+              <!-- Ações Condicionais -->
+              <div v-if="!vinyl.vinyl_sec">
+                <Link :href="route('admin.vinyls.complete', vinyl.id)" class="text-yellow-600 hover:text-yellow-900 font-bold">Completar</Link>
+              </div>
+              <div v-else class="flex space-x-4">
+                <Link :href="route('admin.vinyls.edit', vinyl.id)" class="text-indigo-600 hover:text-indigo-900">Editar</Link>
+                <button @click="deleteVinyl(vinyl.id)" class="text-red-600 hover:text-red-900">Excluir</button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="vinyls.data.length === 0">
+            <td colspan="7" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Nenhum disco encontrado.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginação -->
+    <div v-if="vinyls.links && vinyls.links.length > 3" class="mt-6">
+      <Pagination :links="vinyls.links" />
+  </div>
+</template>
+</template>
+
+<script setup>
+import { ref, watch } from 'vue';
+import { router, Link } from '@inertiajs/vue3';
+import AdminLayout from '@/layouts/admin/AdminLayout.vue';
+import Pagination from '@/Components/Pagination.vue';
+import debounce from 'lodash/debounce';
+
+defineOptions({
+  layout: AdminLayout,
+});
+
+</script>

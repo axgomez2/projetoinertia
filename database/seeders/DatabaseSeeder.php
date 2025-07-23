@@ -28,8 +28,11 @@ class DatabaseSeeder extends Seeder
             
             ProductTypeSeeder::class,
             WeightSeeder::class,
-            // CatStyleShopSeeder::class,
-            DefaultUserSeeder::class,
+            MidiaStatusSeeder::class,
+            CoverStatusSeeder::class,
+          
+            CatStyleShopSeeder::class,
+            // DefaultUserSeeder::class,
         ]);
     }
 }
